@@ -1,62 +1,36 @@
+import { Chess } from 'chess.js';
+
 export class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' });
-    this.board = Array(8).fill().map(() => Array(8).fill(null));
+    this.chess = new Chess(); // Initialize chess.js
     this.selectedPiece = null;
-    this.selectedToken = null;
-    this.currentPlayer = 'white';
+    this.pieces = new Map(); // Store piece game objects
     
-    // Token pools
-    this.whitePieces = {
-      rook: 1,
-      knight: 1,
-      bishop: 1,
-      queen: 0
-    };
-    
-    this.blackPieces = {
-      rook: 1,
-      knight: 1,
-      bishop: 1,
-      queen: 0
-    };
-    
-    this.neutralPool = {
-      rook: 1,
-      knight: 1,
-      bishop: 1,
-      queen: 1
+    // Unicode chess pieces
+    this.pieceSymbols = {
+      'wk': '♔', // white king
+      'wq': '♕', // white queen
+      'wr': '♖', // white rook
+      'wb': '♗', // white bishop
+      'wn': '♘', // white knight
+      'wp': '♙', // white pawn
+      'bk': '♚', // black king
+      'bq': '♛', // black queen
+      'br': '♜', // black rook
+      'bb': '♝', // black bishop
+      'bn': '♞', // black knight
+      'bp': '♟' // black pawn
     };
   }
 
   preload() {
-    // Load chess pieces
-    this.load.image('white-pawn', 'assets/pieces/white-pawn.png');
-    this.load.image('white-rook', 'assets/pieces/white-rook.png');
-    this.load.image('white-knight', 'assets/pieces/white-knight.png');
-    this.load.image('white-bishop', 'assets/pieces/white-bishop.png');
-    this.load.image('white-queen', 'assets/pieces/white-queen.png');
-    this.load.image('white-king', 'assets/pieces/white-king.png');
-    
-    this.load.image('black-pawn', 'assets/pieces/black-pawn.png');
-    this.load.image('black-rook', 'assets/pieces/black-rook.png');
-    this.load.image('black-knight', 'assets/pieces/black-knight.png');
-    this.load.image('black-bishop', 'assets/pieces/black-bishop.png');
-    this.load.image('black-queen', 'assets/pieces/black-queen.png');
-    this.load.image('black-king', 'assets/pieces/black-king.png');
-    
-    // Load tokens
-    this.load.image('token-rook', 'assets/tokens/rook.png');
-    this.load.image('token-knight', 'assets/tokens/knight.png');
-    this.load.image('token-bishop', 'assets/tokens/bishop.png');
-    this.load.image('token-queen', 'assets/tokens/queen.png');
+    // No image preloading needed for Unicode symbols
   }
 
   create() {
     this.createBoard();
     this.createPieces();
-    this.createTokens();
-    this.createUI();
   }
 
   createBoard() {
@@ -74,55 +48,162 @@ export class GameScene extends Phaser.Scene {
           .setOrigin(0, 0)
           .setInteractive()
           .on('pointerdown', () => this.handleTileClick(row, col));
+
+        // Add coordinate labels
+        if (row === 7) {
+          this.add.text(x + 2, y + tileSize - 12, String.fromCharCode(97 + col), { 
+            fontSize: '12px',
+            color: (col % 2 === 0) ? '#4B7399' : '#ECE9D5'
+          });
+        }
+        if (col === 0) {
+          this.add.text(x + 2, y + 2, 8 - row, { 
+            fontSize: '12px',
+            color: (row % 2 === 0) ? '#4B7399' : '#ECE9D5'
+          });
+        }
       }
     }
   }
 
   createPieces() {
-    // Initial chess piece setup will go here
-  }
+    const tileSize = 60;
+    const offsetX = (this.cameras.main.width - (tileSize * 8)) / 2;
+    const offsetY = (this.cameras.main.height - (tileSize * 8)) / 2;
 
-  createTokens() {
-    // Token display and management will go here
-  }
+    // Clear existing pieces
+    this.pieces.forEach(piece => piece.destroy());
+    this.pieces.clear();
 
-  createUI() {
-    // Game UI elements will go here
-  }
+    // Get the current position from chess.js
+    const position = this.chess.board();
 
-  handleTileClick(row, col) {
-    // Handle tile clicks for piece movement
-  }
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const piece = position[row][col];
+        if (piece) {
+          const x = offsetX + col * tileSize + tileSize / 2;
+          const y = offsetY + row * tileSize + tileSize / 2;
+          
+          const pieceType = piece.color + piece.type; // e.g., 'wp' for white pawn
+          const symbol = this.pieceSymbols[pieceType];
+          
+          const pieceObj = this.add.text(x, y, symbol, {
+            fontSize: '40px',
+            color: piece.color === 'w' ? '#FFFFFF' : '#000000',
+            stroke: '#000000',
+            strokeThickness: piece.color === 'w' ? 1 : 0
+          }).setOrigin(0.5);
 
-  handleTokenClick(token, pool) {
-    // Handle token selection and spending
-  }
-
-  isValidMove(fromRow, fromCol, toRow, toCol) {
-    // Chess move validation will go here
-  }
-
-  canSpendToken(pieceType) {
-    const currentTokens = this.currentPlayer === 'white' ? this.whitePieces : this.blackPieces;
-    return currentTokens[pieceType] > 0 || pieceType === 'pawn' || pieceType === 'king';
-  }
-
-  spendToken(pieceType) {
-    if (this.selectedToken) {
-      const currentTokens = this.currentPlayer === 'white' ? this.whitePieces : this.blackPieces;
-      currentTokens[pieceType]--;
-      this.neutralPool[pieceType]++;
-      this.updateTokenDisplay();
+          pieceObj.pieceType = pieceType;
+          pieceObj.setInteractive();
+          pieceObj.on('pointerdown', () => this.handlePieceClick(pieceObj, row, col));
+          
+          this.pieces.set(`${row}-${col}`, pieceObj);
+        }
+      }
     }
   }
 
-  switchTurn() {
-    this.currentPlayer = this.currentPlayer === 'white' ? 'black' : 'white';
-    this.selectedPiece = null;
-    this.selectedToken = null;
+  handlePieceClick(piece, row, col) {
+    const square = this.coordsToSquare(row, col);
+    const currentPiece = this.chess.get(square);
+    const isCurrentPlayerPiece = currentPiece && 
+      (currentPiece.color === 'w') === (this.chess.turn() === 'w');
+
+    if (!isCurrentPlayerPiece && this.selectedPiece === null) {
+      return;
+    }
+    
+    if (this.selectedPiece === null && isCurrentPlayerPiece) {
+      this.selectedPiece = { piece, row, col };
+      piece.setTint(0x00ff00);
+    } else if (this.selectedPiece) {
+      if (this.selectedPiece.piece === piece) {
+        this.selectedPiece.piece.clearTint();
+        this.selectedPiece = null;
+      } else {
+        const fromSquare = this.coordsToSquare(this.selectedPiece.row, this.selectedPiece.col);
+        const toSquare = this.coordsToSquare(row, col);
+        
+        try {
+          const move = this.chess.move({
+            from: fromSquare,
+            to: toSquare,
+            promotion: 'q' // Always promote to queen for now
+          });
+
+          if (move) {
+            // Valid move
+            this.createPieces(); // Refresh all pieces
+            
+            if (this.chess.isCheck()) {
+              console.log('Check!');
+            }
+            if (this.chess.isCheckmate()) {
+              console.log('Checkmate!');
+            }
+            if (this.chess.isDraw()) {
+              console.log('Draw!');
+            }
+          }
+        } catch (e) {
+          console.log('Invalid move:', e);
+        }
+        
+        if (this.selectedPiece) {
+          this.selectedPiece.piece.clearTint();
+          this.selectedPiece = null;
+        }
+      }
+    }
   }
 
-  updateTokenDisplay() {
-    // Update the visual display of tokens
+  handleTileClick(row, col) {
+    if (this.selectedPiece) {
+      const fromSquare = this.coordsToSquare(this.selectedPiece.row, this.selectedPiece.col);
+      const toSquare = this.coordsToSquare(row, col);
+      
+      try {
+        const move = this.chess.move({
+          from: fromSquare,
+          to: toSquare,
+          promotion: 'q' // Always promote to queen for now
+        });
+
+        if (move) {
+          this.createPieces(); // Refresh all pieces
+          
+          if (this.chess.isCheck()) {
+            console.log('Check!');
+          }
+          if (this.chess.isCheckmate()) {
+            console.log('Checkmate!');
+          }
+          if (this.chess.isDraw()) {
+            console.log('Draw!');
+          }
+        }
+      } catch (e) {
+        console.log('Invalid move:', e);
+      }
+      
+      this.selectedPiece.piece.clearTint();
+      this.selectedPiece = null;
+    }
+  }
+
+  // Convert our coordinates (0-7) to chess notation (a1-h8)
+  coordsToSquare(row, col) {
+    const file = String.fromCharCode(97 + col); // 97 is 'a' in ASCII
+    const rank = 8 - row;
+    return `${file}${rank}`;
+  }
+
+  // Convert chess notation (a1-h8) to our coordinates (0-7)
+  squareToCoords(square) {
+    const col = square.charCodeAt(0) - 97; // 97 is 'a' in ASCII
+    const row = 8 - parseInt(square[1]);
+    return { row, col };
   }
 }
