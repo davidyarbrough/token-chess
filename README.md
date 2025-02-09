@@ -1,70 +1,45 @@
-# Getting Started with Create React App
+# Token Chess
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A unique chess variant built with Phaser 3 where players must spend tokens to move certain pieces.
 
-## Available Scripts
+## Game Rules
 
-In the project directory, you can run:
+1. Standard chess rules apply with the following modifications:
+2. Players need tokens to move certain pieces:
+   - Rook: Requires a rook token
+   - Knight: Requires a knight token
+   - Bishop: Requires a bishop token
+   - Queen: Requires a queen token
+   - King and Pawns: Can be moved for free
 
-### `npm start`
+3. Token System:
+   - Each player starts with:
+     - 1 Rook token
+     - 1 Knight token
+     - 1 Bishop token
+   - The neutral pool starts with:
+     - 1 Rook token
+     - 1 Knight token
+     - 1 Bishop token
+     - 1 Queen token
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+4. To move a piece that requires a token:
+   1. Select the token you want to spend
+   2. Move the corresponding piece
+   3. Select a token from the neutral pool
+   4. The spent token and selected neutral token switch places
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Development
 
-### `npm test`
+### Prerequisites
+- Node.js
+- npm
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Installation
+1. Clone the repository
+2. Run `npm install`
+3. Run `npm start` to start the development server
 
-### `npm run build`
-
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-### `npm run eject`
-
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
-
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
-
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
-
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+### Technologies Used
+- Phaser 3 - Game Framework
+- JavaScript (ES6+)
