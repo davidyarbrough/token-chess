@@ -6,6 +6,7 @@ export class GameScene extends Phaser.Scene {
     this.chess = new Chess(); // Initialize chess.js
     this.selectedPiece = null;
     this.pieces = new Map(); // Store piece game objects
+    this.selectionHighlight = null; // Add highlight reference
     
     // Unicode chess pieces
     this.pieceSymbols = {
@@ -111,16 +112,21 @@ export class GameScene extends Phaser.Scene {
     const isCurrentPlayerPiece = currentPiece && 
       (currentPiece.color === 'w') === (this.chess.turn() === 'w');
 
+    // Clear existing highlight
+    if (this.selectionHighlight) {
+      this.selectionHighlight.destroy();
+      this.selectionHighlight = null;
+    }
+
     if (!isCurrentPlayerPiece && this.selectedPiece === null) {
       return;
     }
     
     if (this.selectedPiece === null && isCurrentPlayerPiece) {
       this.selectedPiece = { piece, row, col };
-      piece.setTint(0x00ff00);
+      this.highlightSquare(row, col);
     } else if (this.selectedPiece) {
       if (this.selectedPiece.piece === piece) {
-        this.selectedPiece.piece.clearTint();
         this.selectedPiece = null;
       } else {
         const fromSquare = this.coordsToSquare(this.selectedPiece.row, this.selectedPiece.col);
@@ -134,7 +140,6 @@ export class GameScene extends Phaser.Scene {
           });
 
           if (move) {
-            // Valid move
             this.createPieces(); // Refresh all pieces
             
             if (this.chess.isCheck()) {
@@ -151,10 +156,7 @@ export class GameScene extends Phaser.Scene {
           console.log('Invalid move:', e);
         }
         
-        if (this.selectedPiece) {
-          this.selectedPiece.piece.clearTint();
-          this.selectedPiece = null;
-        }
+        this.selectedPiece = null;
       }
     }
   }
@@ -188,7 +190,11 @@ export class GameScene extends Phaser.Scene {
         console.log('Invalid move:', e);
       }
       
-      this.selectedPiece.piece.clearTint();
+      // Clear highlight
+      if (this.selectionHighlight) {
+        this.selectionHighlight.destroy();
+        this.selectionHighlight = null;
+      }
       this.selectedPiece = null;
     }
   }
@@ -205,5 +211,18 @@ export class GameScene extends Phaser.Scene {
     const col = square.charCodeAt(0) - 97; // 97 is 'a' in ASCII
     const row = 8 - parseInt(square[1]);
     return { row, col };
+  }
+
+  // Add new method to handle square highlighting
+  highlightSquare(row, col) {
+    const tileSize = 60;
+    const offsetX = (this.cameras.main.width - (tileSize * 8)) / 2;
+    const offsetY = (this.cameras.main.height - (tileSize * 8)) / 2;
+    const x = offsetX + col * tileSize;
+    const y = offsetY + row * tileSize;
+
+    this.selectionHighlight = this.add.rectangle(x, y, tileSize, tileSize, 0x00ff00, 0.3)
+      .setOrigin(0, 0)
+      .setDepth(1); // Ensure highlight is above the board but below pieces
   }
 }
