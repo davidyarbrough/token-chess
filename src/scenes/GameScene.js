@@ -3,11 +3,39 @@ import { Chess } from 'chess.js';
 export class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' });
-    this.chess = new Chess(); // Initialize chess.js
+    this.chess = new Chess();
     this.selectedPiece = null;
-    this.pieces = new Map(); // Store piece game objects
-    this.selectionHighlight = null; // Add highlight reference
+    this.selectedToken = null;
+    this.pieces = new Map();
+    this.selectionHighlight = null;
     
+    // Token pools
+    this.whiteTokens = [
+      { type: 'rook', used: false },
+      { type: 'knight', used: false },
+      { type: 'bishop', used: false }
+    ];
+    
+    this.blackTokens = [
+      { type: 'rook', used: false },
+      { type: 'knight', used: false },
+      { type: 'bishop', used: false }
+    ];
+    
+    this.neutralTokens = [
+      { type: 'rook', used: false },
+      { type: 'rook', used: false },
+      { type: 'queen', used: false }
+    ];
+
+    // Unicode symbols for pieces on tokens
+    this.tokenSymbols = {
+      'rook': '♜',
+      'knight': '♞',
+      'bishop': '♝',
+      'queen': '♛'
+    };
+
     // Unicode chess pieces
     this.pieceSymbols = {
       'wk': '♔', // white king
@@ -25,34 +53,57 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  preload() {
-    // No image preloading needed for Unicode symbols
+  create() {
+    this.scale.on('resize', this.resize, this);
+    this.createLayout();
   }
 
-  create() {
+  createLayout() {
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const isWide = width >= height * 1.2; // Screen is significantly wide
+    
+    // Calculate board size and position
+    const minDimension = Math.min(width, height);
+    const boardSize = minDimension * 0.7;
+    const tileSize = boardSize / 8;
+    
+    // Store these for other methods to use
+    this.boardSize = boardSize;
+    this.tileSize = tileSize;
+    
+    // Calculate board position - always center the board
+    const boardX = (width - boardSize) / 2;
+    const boardY = (height - boardSize) / 2;
+    
+    this.boardX = boardX;
+    this.boardY = boardY;
+
+    // Clear existing game objects
+    this.children.removeAll();
+    
+    // Create board and pieces
     this.createBoard();
     this.createPieces();
+    
+    // Create token pools
+    this.createTokenPools(isWide);
   }
 
   createBoard() {
-    const tileSize = 60;
-    const offsetX = (this.cameras.main.width - (tileSize * 8)) / 2;
-    const offsetY = (this.cameras.main.height - (tileSize * 8)) / 2;
-
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
-        const x = offsetX + col * tileSize;
-        const y = offsetY + row * tileSize;
+        const x = this.boardX + col * this.tileSize;
+        const y = this.boardY + row * this.tileSize;
         const color = (row + col) % 2 === 0 ? 0xECE9D5 : 0x4B7399;
         
-        const tile = this.add.rectangle(x, y, tileSize, tileSize, color)
+        const tile = this.add.rectangle(x, y, this.tileSize, this.tileSize, color)
           .setOrigin(0, 0)
           .setInteractive()
           .on('pointerdown', () => this.handleTileClick(row, col));
 
-        // Add coordinate labels
         if (row === 7) {
-          this.add.text(x + 2, y + tileSize - 12, String.fromCharCode(97 + col), { 
+          this.add.text(x + 2, y + this.tileSize - 12, String.fromCharCode(97 + col), { 
             fontSize: '12px',
             color: (col % 2 === 0) ? '#4B7399' : '#ECE9D5'
           });
@@ -67,24 +118,80 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  createTokenPools(isWide) {
+    const tokenSize = this.tileSize * 0.8;
+    const poolPadding = this.tileSize * 1.2; // Consistent padding from board edge
+    
+    // Black tokens - always horizontal across the top
+    this.createTokenPool(
+      this.blackTokens,
+      this.boardX + this.boardSize / 2, // Center on board
+      this.boardY - poolPadding, // Above board
+      tokenSize,
+      false, // horizontal
+      'black'
+    );
+    
+    // White tokens - always horizontal across the bottom
+    this.createTokenPool(
+      this.whiteTokens,
+      this.boardX + this.boardSize / 2, // Center on board
+      this.boardY + this.boardSize + poolPadding, // Below board
+      tokenSize,
+      false, // horizontal
+      'white'
+    );
+    
+    // Neutral tokens - vertical on narrow screens, horizontal on wide screens
+    this.createTokenPool(
+      this.neutralTokens,
+      this.boardX + this.boardSize + poolPadding, // Right of board
+      this.boardY + this.boardSize / 2, // Center vertically with board
+      tokenSize,
+      !isWide, // vertical unless screen is wide
+      'neutral'
+    );
+  }
+
+  createTokenPool(tokens, x, y, size, vertical, owner) {
+    const spacing = size * 1.2; // Space between tokens
+    const poolLength = (tokens.length - 1) * spacing;
+    
+    // Adjust starting position to center the pool
+    const startX = vertical ? x : x - poolLength / 2;
+    const startY = vertical ? y - poolLength / 2 : y;
+    
+    tokens.forEach((token, index) => {
+      const tokenX = vertical ? startX : startX + index * spacing;
+      const tokenY = vertical ? startY + index * spacing : startY;
+      
+      // Create token circle
+      const circle = this.add.circle(tokenX, tokenY, size / 2, 0x808080)
+        .setInteractive()
+        .on('pointerdown', () => this.handleTokenClick(token, owner));
+
+      // Add piece symbol
+      const symbol = this.add.text(tokenX, tokenY, this.tokenSymbols[token.type], {
+        fontSize: `${size * 0.6}px`,
+        color: '#404040'
+      }).setOrigin(0.5);
+
+      if (token.used) {
+        circle.setAlpha(0.5);
+        symbol.setAlpha(0.5);
+      }
+    });
+  }
+
   createPieces() {
-    const tileSize = 60;
-    const offsetX = (this.cameras.main.width - (tileSize * 8)) / 2;
-    const offsetY = (this.cameras.main.height - (tileSize * 8)) / 2;
-
-    // Clear existing pieces
-    this.pieces.forEach(piece => piece.destroy());
-    this.pieces.clear();
-
-    // Get the current position from chess.js
     const position = this.chess.board();
 
     for (let row = 0; row < 8; row++) {
       for (let col = 0; col < 8; col++) {
         const piece = position[row][col];
         if (piece) {
-          const x = offsetX + col * tileSize + tileSize / 2;
-          const y = offsetY + row * tileSize + tileSize / 2;
+          const x = this.boardX + col * this.tileSize + this.tileSize / 2;
+          const y = this.boardY + row * this.tileSize + this.tileSize / 2;
           
           const pieceType = piece.color + piece.type; // e.g., 'wp' for white pawn
           const symbol = this.pieceSymbols[pieceType];
@@ -104,6 +211,18 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+  }
+
+  handleTokenClick(token, owner) {
+    if (token.used) return;
+    
+    const isCurrentPlayer = (owner === 'white' && this.chess.turn() === 'w') ||
+                          (owner === 'black' && this.chess.turn() === 'b');
+    
+    if (!isCurrentPlayer && owner !== 'neutral') return;
+    
+    console.log(`Token clicked: ${token.type} from ${owner} pool`);
+    // TODO: Implement token selection and spending logic
   }
 
   handlePieceClick(piece, row, col) {
@@ -199,30 +318,28 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // Convert our coordinates (0-7) to chess notation (a1-h8)
   coordsToSquare(row, col) {
     const file = String.fromCharCode(97 + col); // 97 is 'a' in ASCII
     const rank = 8 - row;
     return `${file}${rank}`;
   }
 
-  // Convert chess notation (a1-h8) to our coordinates (0-7)
   squareToCoords(square) {
     const col = square.charCodeAt(0) - 97; // 97 is 'a' in ASCII
     const row = 8 - parseInt(square[1]);
     return { row, col };
   }
 
-  // Add new method to handle square highlighting
   highlightSquare(row, col) {
-    const tileSize = 60;
-    const offsetX = (this.cameras.main.width - (tileSize * 8)) / 2;
-    const offsetY = (this.cameras.main.height - (tileSize * 8)) / 2;
-    const x = offsetX + col * tileSize;
-    const y = offsetY + row * tileSize;
+    const x = this.boardX + col * this.tileSize;
+    const y = this.boardY + row * this.tileSize;
 
-    this.selectionHighlight = this.add.rectangle(x, y, tileSize, tileSize, 0x00ff00, 0.3)
+    this.selectionHighlight = this.add.rectangle(x, y, this.tileSize, this.tileSize, 0x00ff00, 0.3)
       .setOrigin(0, 0)
       .setDepth(1); // Ensure highlight is above the board but below pieces
+  }
+
+  resize(gameSize) {
+    this.createLayout();
   }
 }
