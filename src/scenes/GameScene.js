@@ -184,6 +184,10 @@ export class GameScene extends Phaser.Scene {
   }
 
   createPieces() {
+    // Clear existing pieces
+    this.pieces.forEach(piece => piece.destroy());
+    this.pieces.clear();
+
     const position = this.chess.board();
 
     for (let row = 0; row < 8; row++) {
@@ -196,18 +200,18 @@ export class GameScene extends Phaser.Scene {
           const pieceType = piece.color + piece.type; // e.g., 'wp' for white pawn
           const symbol = this.pieceSymbols[pieceType];
           
-          const pieceObj = this.add.text(x, y, symbol, {
-            fontSize: '40px',
+          const pieceText = this.add.text(x, y, symbol, {
+            fontSize: `${this.tileSize * 0.7}px`,
             color: piece.color === 'w' ? '#FFFFFF' : '#000000',
             stroke: '#000000',
             strokeThickness: piece.color === 'w' ? 1 : 0
-          }).setOrigin(0.5);
+          })
+          .setOrigin(0.5)
+          .setInteractive()
+          .on('pointerdown', () => this.handlePieceClick(pieceText, row, col));
 
-          pieceObj.pieceType = pieceType;
-          pieceObj.setInteractive();
-          pieceObj.on('pointerdown', () => this.handlePieceClick(pieceObj, row, col));
-          
-          this.pieces.set(`${row}-${col}`, pieceObj);
+          // Store reference to the piece
+          this.pieces.set(`${row},${col}`, pieceText);
         }
       }
     }
