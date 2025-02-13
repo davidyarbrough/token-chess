@@ -1,93 +1,18 @@
-import { Chess } from 'chess.js';
+import { TURN_STATES, PIECE_SYMBOLS } from '../constants/enums';
+import { GameInitializer } from '../game/GameInitializer';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
     super({ key: 'GameScene' });
-    this.chess = new Chess();
-    this.selectedPiece = null;
-    this.selectedToken = null;
-    this.pieces = new Map();
-    this.selectionHighlight = null;
-    
-    // Token pools
-    this.whiteTokens = [
-      { type: 'rook', used: false },
-      { type: 'knight', used: false },
-      { type: 'bishop', used: false }
-    ];
-    
-    this.blackTokens = [
-      { type: 'rook', used: false },
-      { type: 'knight', used: false },
-      { type: 'bishop', used: false }
-    ];
-    
-    this.neutralTokens = [
-      { type: 'rook', used: false },
-      { type: 'rook', used: false },
-      { type: 'queen', used: false }
-    ];
-
-    // Unicode symbols for pieces on tokens
-    this.tokenSymbols = {
-      'rook': '♜',
-      'knight': '♞',
-      'bishop': '♝',
-      'queen': '♛'
-    };
-
-    // Unicode chess pieces
-    this.pieceSymbols = {
-      'wk': '♔', // white king
-      'wq': '♕', // white queen
-      'wr': '♖', // white rook
-      'wb': '♗', // white bishop
-      'wn': '♘', // white knight
-      'wp': '♙', // white pawn
-      'bk': '♚', // black king
-      'bq': '♛', // black queen
-      'br': '♜', // black rook
-      'bb': '♝', // black bishop
-      'bn': '♞', // black knight
-      'bp': '♟' // black pawn
-    };
+    GameInitializer.initializeGame(this);
   }
 
   create() {
-    this.scale.on('resize', this.resize, this);
-    this.createLayout();
-  }
-
-  createLayout() {
-    const width = this.scale.width;
-    const height = this.scale.height;
-    const isWide = width >= height * 1.2; // Screen is significantly wide
-    
-    // Calculate board size and position
-    const minDimension = Math.min(width, height);
-    const boardSize = minDimension * 0.7;
-    const tileSize = boardSize / 8;
-    
-    // Store these for other methods to use
-    this.boardSize = boardSize;
-    this.tileSize = tileSize;
-    
-    // Calculate board position - always center the board
-    const boardX = (width - boardSize) / 2;
-    const boardY = (height - boardSize) / 2;
-    
-    this.boardX = boardX;
-    this.boardY = boardY;
-
-    // Clear existing game objects
-    this.children.removeAll();
-    
-    // Create board and pieces
-    this.createBoard();
+    GameInitializer.createLayout(this);
+    GameInitializer.createTokenPools(this);
+    GameInitializer.createTurnIndicator(this);
     this.createPieces();
-    
-    // Create token pools
-    this.createTokenPools(isWide);
+    this.updateTurnIndicator();
   }
 
   createBoard() {
@@ -148,7 +73,6 @@ export class GameScene extends Phaser.Scene {
       this.boardX + this.boardSize + poolPadding, // Right of board
       this.boardY + this.boardSize / 2, // Center vertically with board
       tokenSize,
-      !isWide, // vertical unless screen is wide
       'neutral'
     );
   }
@@ -171,15 +95,10 @@ export class GameScene extends Phaser.Scene {
         .on('pointerdown', () => this.handleTokenClick(token, owner));
 
       // Add piece symbol
-      const symbol = this.add.text(tokenX, tokenY, this.tokenSymbols[token.type], {
+      this.add.text(tokenX, tokenY, PIECE_SYMBOLS[token.type], {
         fontSize: `${size * 0.6}px`,
         color: '#404040'
       }).setOrigin(0.5);
-
-      if (token.used) {
-        circle.setAlpha(0.5);
-        symbol.setAlpha(0.5);
-      }
     });
   }
 
@@ -198,7 +117,7 @@ export class GameScene extends Phaser.Scene {
           const y = this.boardY + row * this.tileSize + this.tileSize / 2;
           
           const pieceType = piece.color + piece.type; // e.g., 'wp' for white pawn
-          const symbol = this.pieceSymbols[pieceType];
+          const symbol = PIECE_SYMBOLS[pieceType];
           
           const pieceText = this.add.text(x, y, symbol, {
             fontSize: `${this.tileSize * 0.7}px`,
@@ -218,107 +137,161 @@ export class GameScene extends Phaser.Scene {
   }
 
   handleTokenClick(token, owner) {
-    if (token.used) return;
+    if (this.turnState === TURN_STATES.SELECT_NEUTRAL_TOKEN) {
+      if (owner === 'neutral') {
+        this.handleNeutralTokenSelection(token);
+      }
+      return;
+    }
     
     const isCurrentPlayer = (owner === 'white' && this.chess.turn() === 'w') ||
                           (owner === 'black' && this.chess.turn() === 'b');
     
     if (!isCurrentPlayer && owner !== 'neutral') return;
     
-    console.log(`Token clicked: ${token.type} from ${owner} pool`);
-    // TODO: Implement token selection and spending logic
+    if (this.turnState === TURN_STATES.SELECT_PIECE) {
+      this.selectToken(token, owner);
+    }
+  }
+
+  handleNeutralTokenSelection(token) {
+    this.swapTokens(this.lastUsedToken, token);
+    this.turnState = TURN_STATES.SELECT_PIECE;
+    this.lastMovedPiece = null;
+    this.lastUsedToken = null;
+    this.updateTurnIndicator();
+  }
+
+  selectToken(token, owner) {
+    this.selectedToken = token;
+    this.highlightSelectedToken(token, owner);
+  }
+
+  highlightSelectedToken(token, owner) {
+    const tokenCircles = this.children.list.filter(child => {
+      return child.type === 'Circle' && child.input && child.input.enabled;
+    });
+    
+    for (const circle of tokenCircles) {
+      const x = circle.x;
+      const y = circle.y;
+      
+      const pools = [
+        { tokens: this.whiteTokens, owner: 'white' },
+        { tokens: this.blackTokens, owner: 'black' },
+        { tokens: this.neutralTokens, owner: 'neutral' }
+      ];
+      
+      for (const pool of pools) {
+        const tokenIndex = pool.tokens.findIndex(t => t === token);
+        if (tokenIndex !== -1 && pool.owner === owner) {
+          this.highlightObject(x, y, 0x00ff00);
+          return;
+        }
+      }
+    }
   }
 
   handlePieceClick(piece, row, col) {
+    this.handleSquareClick(piece, row, col);
+  }
+
+  handleTileClick(row, col) {
+    this.handleSquareClick(null, row, col);
+  }
+
+  handleSquareClick(piece, row, col) {
+    if (this.turnState === TURN_STATES.SELECT_NEUTRAL_TOKEN) return;
+
     const square = this.coordsToSquare(row, col);
     const currentPiece = this.chess.get(square);
     const isCurrentPlayerPiece = currentPiece && 
       (currentPiece.color === 'w') === (this.chess.turn() === 'w');
 
-    // Clear existing highlight
-    if (this.selectionHighlight) {
-      this.selectionHighlight.destroy();
-      this.selectionHighlight = null;
-    }
-
-    if (!isCurrentPlayerPiece && this.selectedPiece === null) {
-      return;
-    }
-    
-    if (this.selectedPiece === null && isCurrentPlayerPiece) {
-      this.selectedPiece = { piece, row, col };
-      this.highlightSquare(row, col);
-    } else if (this.selectedPiece) {
-      if (this.selectedPiece.piece === piece) {
-        this.selectedPiece = null;
-      } else {
-        const fromSquare = this.coordsToSquare(this.selectedPiece.row, this.selectedPiece.col);
-        const toSquare = this.coordsToSquare(row, col);
-        
-        try {
-          const move = this.chess.move({
-            from: fromSquare,
-            to: toSquare,
-            promotion: 'q' // Always promote to queen for now
-          });
-
-          if (move) {
-            this.createPieces(); // Refresh all pieces
-            
-            if (this.chess.isCheck()) {
-              console.log('Check!');
-            }
-            if (this.chess.isCheckmate()) {
-              console.log('Checkmate!');
-            }
-            if (this.chess.isDraw()) {
-              console.log('Draw!');
-            }
-          }
-        } catch (e) {
-          console.log('Invalid move:', e);
-        }
-        
-        this.selectedPiece = null;
-      }
+    if (this.selectedPiece === null) {
+      if (!isCurrentPlayerPiece) return;
+      this.handlePieceSelection(currentPiece, piece, row, col);
+    } else {
+      this.handlePieceMovement(piece, row, col);
     }
   }
 
-  handleTileClick(row, col) {
-    if (this.selectedPiece) {
-      const fromSquare = this.coordsToSquare(this.selectedPiece.row, this.selectedPiece.col);
-      const toSquare = this.coordsToSquare(row, col);
-      
-      try {
-        const move = this.chess.move({
-          from: fromSquare,
-          to: toSquare,
-          promotion: 'q' // Always promote to queen for now
-        });
+  handlePieceSelection(currentPiece, piece, row, col) {
+    if (this.pieceRequiresToken(currentPiece)) {
+      const matchingToken = this.findMatchingToken(currentPiece);
+      if (!matchingToken) {
+        this.highlightObject(
+          this.boardX + col * this.tileSize + this.tileSize / 2,
+          this.boardY + row * this.tileSize + this.tileSize / 2,
+          0xffa500
+        );
+        return;
+      }
+      this.selectedToken = matchingToken;
+    }
+    
+    this.selectedPiece = { piece, row, col };
+    this.highlightObject(
+      this.boardX + col * this.tileSize + this.tileSize / 2,
+      this.boardY + row * this.tileSize + this.tileSize / 2,
+      0x00ff00
+    );
+  }
 
-        if (move) {
-          this.createPieces(); // Refresh all pieces
-          
-          if (this.chess.isCheck()) {
-            console.log('Check!');
-          }
-          if (this.chess.isCheckmate()) {
-            console.log('Checkmate!');
-          }
-          if (this.chess.isDraw()) {
-            console.log('Draw!');
-          }
-        }
-      } catch (e) {
-        console.log('Invalid move:', e);
-      }
-      
-      // Clear highlight
-      if (this.selectionHighlight) {
-        this.selectionHighlight.destroy();
-        this.selectionHighlight = null;
-      }
+  handlePieceMovement(piece, row, col) {
+    if (this.selectedPiece.piece === piece) {
       this.selectedPiece = null;
+      this.selectedToken = null;
+      return;
+    }
+
+    const fromSquare = this.coordsToSquare(this.selectedPiece.row, this.selectedPiece.col);
+    const toSquare = this.coordsToSquare(row, col);
+    
+    try {
+      const move = this.chess.move({
+        from: fromSquare,
+        to: toSquare,
+        promotion: 'q'
+      });
+
+      if (move) {
+        this.handleSuccessfulMove(toSquare);
+      }
+    } catch (e) {
+      console.log('Invalid move:', e);
+    }
+    
+    this.selectedPiece = null;
+  }
+
+  handleSuccessfulMove(toSquare) {
+    const movedPiece = this.chess.get(toSquare);
+    const requiredToken = this.pieceRequiresToken(movedPiece);
+    
+    if (requiredToken && this.selectedToken) {
+      this.lastMovedPiece = movedPiece;
+      this.lastUsedToken = this.selectedToken;
+      this.turnState = TURN_STATES.SELECT_NEUTRAL_TOKEN;
+    } else {
+      this.turnState = TURN_STATES.SELECT_PIECE;
+      this.selectedToken = null;
+    }
+    
+    this.createPieces();
+    this.updateTurnIndicator();
+    this.checkGameState();
+  }
+
+  checkGameState() {
+    if (this.chess.isCheck()) {
+      console.log('Check!');
+    }
+    if (this.chess.isCheckmate()) {
+      console.log('Checkmate!');
+    }
+    if (this.chess.isDraw()) {
+      console.log('Draw!');
     }
   }
 
@@ -334,16 +307,63 @@ export class GameScene extends Phaser.Scene {
     return { row, col };
   }
 
-  highlightSquare(row, col) {
-    const x = this.boardX + col * this.tileSize;
-    const y = this.boardY + row * this.tileSize;
+  highlightObject(x, y, color) {
+    if (this.selectionHighlight) {
+      this.selectionHighlight.destroy();
+    }
+    
+    this.selectionHighlight = this.add.circle(x, y, this.tileSize * 0.45, color)
+      .setAlpha(0.5)
+      .setDepth(1);
+  }
 
-    this.selectionHighlight = this.add.rectangle(x, y, this.tileSize, this.tileSize, 0x00ff00, 0.3)
-      .setOrigin(0, 0)
-      .setDepth(1); // Ensure highlight is above the board but below pieces
+  updateTurnIndicator() {
+    if (!this.turnIndicator) return;
+    const turn = this.chess.turn() === 'w' ? 'White' : 'Black';
+    let text = `${turn} to move`;
+    
+    if (this.turnState === TURN_STATES.SELECT_NEUTRAL_TOKEN) {
+      text = `${turn} must select a neutral token to swap`;
+    }
+    
+    this.turnIndicator.setText(text);
   }
 
   resize(gameSize) {
-    this.createLayout();
+    GameInitializer.createLayout(this);
+  }
+
+  // Helper method to determine if a piece requires a token
+  pieceRequiresToken(piece) {
+    if (!piece) return false;
+    return this.tokenRequiredTypes.has(piece.type.toLowerCase());
+  }
+
+  // Helper method to get available tokens for the current player
+  getAvailableTokens() {
+    const currentPlayer = this.chess.turn() === 'w' ? 'white' : 'black';
+    const tokens = currentPlayer === 'white' ? this.whiteTokens : this.blackTokens;
+    return tokens;
+  }
+
+  // Helper method to find a matching token for a piece
+  findMatchingToken(piece) {
+    if (!piece) return null;
+    const tokens = this.getAvailableTokens();
+    
+    // Map piece types to token types
+    const requiredType = PIECE_TO_TOKEN_MAP[piece.type.toLowerCase()];
+    const matchingToken = tokens.find(token => token.type === requiredType);
+    return matchingToken;
+  }
+
+  swapTokens(usedToken, neutralToken) {
+    // Swap the types
+    const tempType = usedToken.type;
+    usedToken.type = neutralToken.type;
+    neutralToken.type = tempType;
+
+    // Refresh the token displays
+    GameInitializer.createTokenPools(this, this.scale.width >= this.scale.height * 1.2);
   }
 }
