@@ -127,6 +127,7 @@ export class GameScene extends Phaser.Scene {
       this.selectedToken = null;
     }
     
+    this.unhighlightSelectedToken();
     this.createPieces();
     this.updateTurnIndicator();
     this.checkGameState();
