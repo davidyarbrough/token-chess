@@ -209,7 +209,8 @@ export class GameScene extends Phaser.Scene {
     let text = `${currentTurn}'s turn`;
     
     if (this.turnState === TURN_STATES.SELECT_NEUTRAL_TOKEN) {
-      text = `${currentTurn} must select a neutral token`;
+      const playerToSelect = this.lastMovedPiece.color === 'w' ? 'White' : 'Black';
+      text = `${playerToSelect} must select a neutral token`;
     }
     
     this.turnIndicator.setText(text);
