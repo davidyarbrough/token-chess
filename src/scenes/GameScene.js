@@ -1,4 +1,5 @@
 import { TURN_STATES, PIECE_SYMBOLS } from '../constants/enums';
+import { PIECE_TO_TOKEN_MAP } from '../constants/tokens';
 import { GameInitializer } from '../game/GameInitializer';
 
 export class GameScene extends Phaser.Scene {
@@ -27,7 +28,7 @@ export class GameScene extends Phaser.Scene {
           const x = this.boardX + col * this.tileSize + this.tileSize / 2;
           const y = this.boardY + row * this.tileSize + this.tileSize / 2;
           
-          const pieceType = piece.color + piece.type;
+          const pieceType = `${piece.color}${piece.type}`;
           const symbol = PIECE_SYMBOLS[pieceType];
           
           const pieceText = this.add.text(x, y, symbol, {
@@ -246,8 +247,9 @@ export class GameScene extends Phaser.Scene {
   }
 
   findMatchingToken(piece) {
+    const tokenType = PIECE_TO_TOKEN_MAP[piece.type];
     const tokens = this.chess.turn() === 'w' ? this.whiteTokens : this.blackTokens;
-    return tokens.find(token => token.type === piece.type);
+    return tokens.find(token => token.type === tokenType);
   }
 
   swapTokens(usedToken, neutralToken) {
