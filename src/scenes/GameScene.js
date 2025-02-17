@@ -1,5 +1,4 @@
-import { Chess } from 'chess.js';
-import { TURN_STATES, PIECE_SYMBOLS, TOKEN_SYMBOLS } from '../constants/enums';
+import { TURN_STATES, PIECE_SYMBOLS } from '../constants/enums';
 import { GameInitializer } from '../game/GameInitializer';
 
 export class GameScene extends Phaser.Scene {
@@ -75,6 +74,7 @@ export class GameScene extends Phaser.Scene {
         return;
       }
       this.selectedToken = matchingToken;
+      this.highlightSelectedToken(matchingToken, this.chess.turn() === 'w' ? 'white' : 'black');
     }
     
     this.selectedPiece = { piece, row, col };
@@ -88,6 +88,7 @@ export class GameScene extends Phaser.Scene {
   handlePieceMovement(piece, row, col) {
     if (this.selectedPiece.piece === piece) {
       this.selectedPiece = null;
+      this.unhighlightSelectedToken();
       this.selectedToken = null;
       return;
     }
@@ -159,6 +160,12 @@ export class GameScene extends Phaser.Scene {
   selectToken(token, owner) {
     this.selectedToken = token;
     this.highlightSelectedToken(token, owner);
+  }
+
+  unhighlightSelectedToken() {
+    if (this.selectionHighlight) {
+      this.selectionHighlight.destroy();
+    }
   }
 
   highlightSelectedToken(token, owner) {

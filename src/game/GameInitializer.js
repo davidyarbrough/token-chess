@@ -116,7 +116,7 @@ export class GameInitializer {
       scene.boardX + scene.boardSize + poolPadding,
       scene.boardY + scene.boardSize / 2,
       tokenSize,
-      !isWide,
+      true,
       'neutral'
     );
   }
