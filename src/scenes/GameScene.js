@@ -14,6 +14,7 @@ export class GameScene extends Phaser.Scene {
     GameInitializer.createTurnIndicator(this);
     this.createPieces();
     this.updateTurnIndicator();
+    this.createCapturedAreas();
 
     // Adjust layout for mobile
     this.scale.on('resize', this.resize, this);
@@ -136,6 +137,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   handleSuccessfulMove(toSquare) {
+    const move = this.chess.history({ verbose: true }).pop();
+    if (move.captured) {
+      const capturedPiece = { color: move.color === 'w' ? 'b' : 'w', type: move.captured };
+      this.updateCapturedArea(capturedPiece);
+    }
     const movedPiece = this.chess.get(toSquare);
     const requiredToken = this.pieceRequiresToken(movedPiece);
     
@@ -152,6 +158,7 @@ export class GameScene extends Phaser.Scene {
     this.createPieces();
     this.updateTurnIndicator();
     this.checkGameState();
+    this.renderCapturedPieces();
   }
 
   handleTokenClick(token, owner) {
@@ -248,6 +255,34 @@ export class GameScene extends Phaser.Scene {
     if (this.chess.isDraw()) {
       console.log('Draw!');
     }
+  }
+
+  createCapturedAreas() {
+    const whiteCapturedY = this.boardY + this.boardSize + this.tileSize * 2.5;
+    const blackCapturedY = this.boardY - this.tileSize * 2.5;
+    const capturedX = this.boardX + this.boardSize / 2;
+
+    // Create outlines for captured areas
+    this.add.rectangle(capturedX, whiteCapturedY, this.boardSize, this.tileSize * 2, 0x000000, 0.2).setOrigin(0.5);
+    this.add.rectangle(capturedX, blackCapturedY, this.boardSize, this.tileSize * 2, 0x000000, 0.2).setOrigin(0.5);
+
+    // Add labels and initialize text fields
+    this.whiteCaptured = this.add.text(capturedX, whiteCapturedY, '', { fontSize: '16px', color: '#000000' }).setOrigin(0.5);
+    this.blackCaptured = this.add.text(capturedX, blackCapturedY, '', { fontSize: '16px', color: '#FFFFFF' }).setOrigin(0.5);
+  }
+
+  updateCapturedArea(piece) {
+    console.log('Captured piece:', piece);
+    const capturedArray = piece.color === 'w' ? this.blackCaptured : this.whiteCaptured;
+
+    const symbol = PIECE_SYMBOLS[piece.color + piece.type];
+    capturedArray.text += symbol;
+    capturedArray.setOrigin(0.5, 0.5);
+    console.log('Captured symbol added:', symbol);
+  }
+
+  renderCapturedPieces() {
+    // No need to render captured pieces as they are now represented as text
   }
 
   // Helper methods

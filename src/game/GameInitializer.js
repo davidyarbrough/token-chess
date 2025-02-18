@@ -85,7 +85,7 @@ export class GameInitializer {
   static createTokenPools(scene) {
     const isWide = scene.cameras.main.width >= scene.cameras.main.height * 1.2;
     const tokenSize = scene.tileSize * 0.8;
-    const poolPadding = scene.tileSize * 1.2;
+    const poolPadding = scene.tileSize * 0.75;
     
     // Black tokens (top)
     this.createTokenPool(
