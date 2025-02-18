@@ -14,6 +14,27 @@ export class GameScene extends Phaser.Scene {
     GameInitializer.createTurnIndicator(this);
     this.createPieces();
     this.updateTurnIndicator();
+
+    // Adjust layout for mobile
+    this.scale.on('resize', this.resize, this);
+    this.resize({ width: window.innerWidth, height: window.innerHeight });
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+    const minDimension = Math.min(width, height);
+    const boardSize = minDimension * 0.7;
+    const tileSize = boardSize / 8;
+
+    this.boardSize = boardSize;
+    this.tileSize = tileSize;
+    this.boardX = (width - boardSize) / 2;
+    this.boardY = (height - boardSize) / 2;
+
+    // Update positions of game elements
+    this.createPieces();
+    this.updateTurnIndicator();
   }
 
   createPieces() {

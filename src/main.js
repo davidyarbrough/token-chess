@@ -4,7 +4,7 @@ import { GameScene } from './scenes/GameScene';
 const config = {
   type: Phaser.AUTO,
   scale: {
-    mode: Phaser.Scale.RESIZE,
+    mode: Phaser.Scale.FIT,
     parent: 'game',
     width: '100%',
     height: '100%',
